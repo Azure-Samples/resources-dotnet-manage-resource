@@ -1,0 +1,1 @@
+# resources-dotnet-manage-resource
