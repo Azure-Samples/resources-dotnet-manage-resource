@@ -6,12 +6,12 @@ author: alvadb
 
 #Getting Started with Resources - Manage Resource - in .Net #
 
-      Azure Resource sample for managing resources -
-      - Create a resource
-      - Update a resource
-      - Create another resource
-      - List resources
-      - Delete a resource.
+         Azure Resource sample for managing resources -
+         - Create a resource
+         - Update a resource
+         - Create another resource
+         - List resources
+         - Delete a resource.
 
 
 ## Running this Sample ##
