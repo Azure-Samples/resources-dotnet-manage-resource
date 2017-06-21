@@ -4,7 +4,7 @@ platforms: .Net
 author: alvadb
 ---
 
-#Getting Started with Resources - Manage Resource - in .Net #
+# Getting Started with Resources - Manage Resource - in .Net #
 
          Azure Resource sample for managing resources -
          - Create a resource
