@@ -1,0 +1,2 @@
+C:\Sources\dotnet-samples\resources-dotnet-manage-resource\bin\Debug\netstandard1.6\ManageResource.deps.json
+C:\Sources\dotnet-samples\resources-dotnet-manage-resource\obj\Debug\netstandard1.6\ManageResource.csproj.CoreCompileInputs.cache
