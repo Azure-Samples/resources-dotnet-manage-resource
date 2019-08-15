@@ -4,19 +4,19 @@ languages:
 - csharp
 products:
 - azure
-services: Resource-Manager
-platforms: dotnet
-author: yaohaizh
+extensions:
+- services: Resource-Manager
+- platforms: dotnet
 ---
 
 # Getting started on managing resources in C# #
 
-         Azure Resource sample for managing resources -
-         - Create a resource
-         - Update a resource
-         - Create another resource
-         - List resources
-         - Delete a resource.
+ Azure Resource sample for managing resources -
+ - Create a resource
+ - Update a resource
+ - Create another resource
+ - List resources
+ - Delete a resource.
 
 
 ## Running this Sample ##
