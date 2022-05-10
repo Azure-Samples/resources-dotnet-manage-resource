@@ -1,17 +1,19 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See License.txt in the project root for license information.
 
-using Microsoft.Azure.Management.Fluent;
-using Microsoft.Azure.Management.ResourceManager.Fluent;
-using Microsoft.Azure.Management.ResourceManager.Fluent.Authentication;
-using Microsoft.Azure.Management.ResourceManager.Fluent.Core;
-using Microsoft.Azure.Management.Samples.Common;
-using System;
+using Azure;
+using Azure.Core;
+using Azure.Identity;
+using Azure.ResourceManager;
+using Azure.ResourceManager.Resources;
+using Azure.ResourceManager.Storage;
+using Azure.ResourceManager.Storage.Models;
 
 namespace ManageResource
 {
     public class Program
     {
+        private static ResourceIdentifier? _resourceGroupId;
         /**
         * Azure Resource sample for managing resources -
         * - Create a resource
@@ -20,114 +22,117 @@ namespace ManageResource
         * - List resources
         * - Delete a resource.
         */
-        public static void RunSample(IAzure azure)
+        public static async Task RunSample(ArmClient client)
         {
-            var resourceGroupName = SdkContext.RandomResourceName("rgRSMR", 24);
-            var resourceName1 = SdkContext.RandomResourceName("rn1", 24);
-            var resourceName2 = SdkContext.RandomResourceName("rn2", 24);
+            // change the values here for your own resource names
+            var resourceGroupName = "rgRSMR";
+            var resourceName1 = "rn1";
+            var resourceName2 = "rn2";
 
             try
             {
                 //=============================================================
                 // Create resource group.
 
-                Utilities.Log("Creating a resource group with name: " + resourceGroupName);
+                Console.WriteLine($"Creating a resource group with name: {resourceGroupName}");
 
-                azure.ResourceGroups
-                    .Define(resourceGroupName)
-                    .WithRegion(Region.USWest)
-                    .Create();
+                var subscription = await client.GetDefaultSubscriptionAsync();
+                var rgLro = await subscription.GetResourceGroups().CreateOrUpdateAsync(WaitUntil.Completed, resourceGroupName, new ResourceGroupData(AzureLocation.WestUS));
+
+                var resourceGroup = rgLro.Value;
+                _resourceGroupId = resourceGroup.Id;
+
+                Console.WriteLine($"Created a resource group: {_resourceGroupId}");
 
                 //=============================================================
                 // Create storage account.
 
-                Utilities.Log("Creating a storage account with name: " + resourceName1);
+                Console.WriteLine($"Creating a storage account with name: {resourceName1}");
 
-                var storageAccount = azure.StorageAccounts
-                    .Define(resourceName1)
-                    .WithRegion(Region.USWest)
-                    .WithExistingResourceGroup(resourceGroupName)
-                    .Create();
+                var storageAccountLro = await resourceGroup.GetStorageAccounts().CreateOrUpdateAsync(WaitUntil.Completed, resourceName1, new StorageAccountCreateOrUpdateContent(
+                    new StorageSku(StorageSkuName.StandardLRS), StorageKind.Storage, AzureLocation.WestUS));
+                var storageAccount = storageAccountLro.Value;
 
-                Utilities.Log("Storage account created: " + storageAccount.Id);
+                Console.WriteLine($"Storage account created: {storageAccount.Id}");
 
                 //=============================================================
                 // Update - set the sku name
 
-                Utilities.Log("Updating the storage account with name: " + resourceName1);
+                Console.WriteLine($"Updating the storage account {storageAccount.Id}");
 
-                storageAccount.Update()
-                    .WithSku(Microsoft.Azure.Management.Storage.Fluent.Models.SkuName.StandardRAGRS)
-                    .Apply();
+                storageAccount = await storageAccount.UpdateAsync(new StorageAccountPatch()
+                {
+                    Sku = new StorageSku(StorageSkuName.StandardRagrs),
+                });
 
-                Utilities.Log("Updated the storage account with name: " + resourceName1);
+                Console.WriteLine($"Updated the storage account {storageAccount.Id}");
 
                 //=============================================================
                 // Create another storage account.
 
-                Utilities.Log("Creating another storage account with name: " + resourceName2);
+                Console.WriteLine($"Creating another storage account with name: {resourceName2}");
 
-                var storageAccount2 = azure.StorageAccounts.Define(resourceName2)
-                    .WithRegion(Region.USWest)
-                    .WithExistingResourceGroup(resourceGroupName)
-                    .Create();
+                storageAccountLro = await resourceGroup.GetStorageAccounts().CreateOrUpdateAsync(WaitUntil.Completed, resourceName2, new StorageAccountCreateOrUpdateContent(
+                    new StorageSku(StorageSkuName.StandardGRS), StorageKind.Storage, AzureLocation.WestUS));
+                var storageAccount2 = storageAccountLro.Value;
 
-                Utilities.Log("Storage account created: " + storageAccount2.Id);
+                Console.WriteLine($"Storage account created: {storageAccount2.Id}");
 
                 //=============================================================
                 // List storage accounts.
 
-                Utilities.Log("Listing all storage accounts for resource group: " + resourceGroupName);
+                Console.WriteLine("Listing all storage accounts for resource group: " + resourceGroupName);
 
-                foreach (var sAccount in azure.StorageAccounts.List())
+                foreach (var account in resourceGroup.GetStorageAccounts())
                 {
-                    Utilities.Log("Storage account: " + sAccount.Name);
+                    Console.WriteLine($"Storage account: {account.Id}");
                 }
 
                 //=============================================================
                 // Delete a storage accounts.
 
-                Utilities.Log("Deleting storage account: " + resourceName2);
+                Console.WriteLine($"Deleting storage account: {storageAccount2.Id}");
 
-                azure.StorageAccounts.DeleteById(storageAccount2.Id);
+                await storageAccount2.DeleteAsync(WaitUntil.Completed);
 
-                Utilities.Log("Deleted storage account: " + resourceName2);
+                Console.WriteLine($"Deleted storage account: {storageAccount2.Id}");
             }
             finally
             {
                 try
                 {
-                    Utilities.Log("Deleting Resource Group: " + resourceGroupName);
-                    azure.ResourceGroups.DeleteByName(resourceGroupName);
-                    Utilities.Log("Deleted Resource Group: " + resourceGroupName);
+                    if (_resourceGroupId is not null)
+                    {
+                        Console.WriteLine($"Deleting Resource Group: {_resourceGroupId}");
+                        await client.GetResourceGroupResource(_resourceGroupId).DeleteAsync(WaitUntil.Completed);
+                        Console.WriteLine($"Deleted Resource Group: {_resourceGroupId}");
+                    }
                 }
                 catch (Exception ex)
                 {
-                    Utilities.Log(ex);
+                    Console.WriteLine(ex);
                 }
             }
         }
 
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
 
             try
             {
                 //=================================================================
                 // Authenticate
-                AzureCredentials credentials = SdkContext.AzureCredentialsFactory.FromFile(Environment.GetEnvironmentVariable("AZURE_AUTH_LOCATION"));
+                var credential = new DefaultAzureCredential();
 
-                var azure = Azure
-                    .Configure()
-                    .WithLogLevel(HttpLoggingDelegatingHandler.Level.Basic)
-                    .Authenticate(credentials)
-                    .WithDefaultSubscription();
+                var subscriptionId = Environment.GetEnvironmentVariable("AZURE_SUBSCRIPTION_ID");
+                // you can also use `new ArmClient(credential)` here, and the default subscription will be the first subscription in your list of subscription
+                var client = new ArmClient(credential, subscriptionId);
 
-                RunSample(azure);
+                await RunSample(client);
             }
             catch (Exception ex)
             {
-                Utilities.Log(ex);
+                Console.WriteLine(ex);
             }
         }
     }
